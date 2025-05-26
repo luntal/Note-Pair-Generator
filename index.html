@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simple Generator (ABCjs)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/dist/abcjs-basic-min.js"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/dist/abcjs-midi-min.js"></script> -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/dist/abcjs-audio-min.js"></script> -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/abcjs-audio.css">
+  <!-- <script src="abc-note-mapping.js"></script> -->
+  <style>
+    /* .container {
+  overflow: visible !important;
+  max-width: none !important;
+  width: auto !important;
+} */
+    body {
+      font-family: 'Segoe UI', 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+    }
+    #abc-sheet {
+      overflow: visible !important;
+      width: 100% !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      padding: 16px;
+      margin-top: 24px;
+      margin-bottom: 24px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+    #abc-sheet svg {
+      font-family: 'Segoe UI', 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+      display: inline-block;
+      width: auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    #audio-controls {
+      width: 100%;
+      max-width: 600px;      /* or your preferred max width */
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+      display: block;
+
+    }
+/* body, html {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+} */
+    
+  </style>
+</head>
+<body>
+    <div class="container has-text-centered">
+  <h1 class="title" style="margin-top: 40px;">Simple Note Pair Generator</h1>
+  <!-- <p class="subtitle" style="margin-top: 40px;font-size: 0.8em">Generate random pairs of MIDI pitches in ABC notation.</p> -->
+  <div style="margin-bottom: 1em;">
+    <label><strong>MIDI Pitch/Note Range: </strong></label>
+    <label>Min: <input type="number" id="minNote" value="50" min="21" max="69" style="margin-right: 1em;"></label>
+    <label>Max:<input type="number" id="maxNote" value="71" min="62" max="108" style="margin-left: 1em;"></label>
+  </div>
+  <div>
+    <button class="button is-primary" id="generateBtn">Generate</button>
+  </div>
+  <!-- <div id="output"></div> -->
+  
+  
+   
+</div>
+
+<div id="abc-sheet"></div>
+<div id="audio-controls"></div>
+
+
+  <script>
+    accidentals = [];
+    let isPlaying = false;
+    // Helper to convert MIDI to ABC note (C4 = 60)
+    function midiToAbc(midi) {
+      const notes = ['C', '^C', 'D', '^D', 'E', 'F', '^F', 'G', '^G', 'A', '^A', 'B'];
+      const note = notes[midi % 12];
+      const octave = Math.floor(midi / 12) - 1;
+      // ABC notation: , (down), ' (up), C4=middle C
+      let abcOctave = "";
+      if (octave < 4) abcOctave = ",".repeat(4 - octave);
+      else if (octave > 5) abcOctave = "'".repeat(octave - 5);
+      // Lowercase for octave >=5
+      let abcNote = (octave >= 5) ? note.toLowerCase() : note;
+      // check if the 
+      
+      
+      // Handle accidentals
+      
+      
+      let noteStr = abcNote + abcOctave;
+      //check if noteStr includes an accidental
+      if (accidentals.includes(noteStr)) {
+        abcNote = "=" + abcNote; 
+      }
+
+
+
+      if (noteStr.includes("^")) {
+        noteStr = noteStr.replace("^", "");
+      }
+      accidentals.push(noteStr); // this will be the note that needs resolution sign inside the current bar.
+
+      
+
+      return abcNote + abcOctave;
+    }
+    
+    function accidentalTracker(midi){
+      const notes = ['C', '^C', 'D', '^D', 'E', 'F', '^F', 'G', '^G', 'A', '^A', 'B'];
+      const note = notes[midi % 12];
+      if (note.includes('^')) {
+        if (!accidentals.includes(note)) {
+          accidentals.push(note);
+        } else {
+
+        }
+      } 
+      // else {
+      //   const index = accidentals.indexOf(note);
+      //   if (index > -1) {
+      //     accidentals.splice(index, 1);
+      //   }
+      // }
+    }
+
+    function generatePiece(minNote, maxNote) {
+      let totalNotes = maxNote - minNote + 1;
+      const notes = [];
+      const used = new Set();
+
+      while (notes.length < totalNotes) {
+        let pair = [];
+        for (let i = 0; i < 2 && notes.length + pair.length < totalNotes; i++) {
+          let note;
+          do {
+            note = Math.floor(Math.random() * (maxNote - minNote + 1)) + minNote;
+          } while (used.has(note));
+          pair.push(note);
+          used.add(note);
+        }
+        notes.push(...pair);
+      }
+    //   console.log('---')
+      if (totalNotes % 2 === 1){
+          totalNotes = totalNotes-1;
+        }
+        // console.log(totalNotes);
+        // console.log(notes.length)
+      return notes.slice(0, totalNotes);
+    }
+
+
+
+
+    function validateInputs() {
+      const min = parseInt(document.getElementById('minNote').value, 10);
+      const max = parseInt(document.getElementById('maxNote').value, 10);
+      if (min < 21) return false;
+      if (max > 108) return false;
+      if (min >= max) return false;
+      return true;
+    }
+
+
+let currentSynthControl = null;
+    function renderAbcSheet(notes){
+        accidentals = [];
+        if (currentSynthControl && currentSynthControl.pause) {
+        currentSynthControl.pause();
+    }
+        document.getElementById("audio-controls").innerHTML = "";
+        // notes = [48, 55, 60, 67, 72, 79, 84]; // For testing
+        // let abc = "X:1\nT:Note Pairs\nM:4/4\nL:1/4\nQ:1/4=90\nK:C\nV:1 clef=treble\nV:2 clef=bass\n";
+        let abc = "X:1\nM:4/4\nL:1/4\nQ:1/4=90\nK:C\nV:1 clef=treble\nV:2 clef=bass\n";
+        let trebleVoice = "[V:1] ";
+        let bassVoice = "[V:2] ";
+        // console.log(notes.length);
+        for (let i = 0; i < notes.length; i += 2){
+            // trebleVoice.push('[V:1] ');
+            // bassVoice.push('[V:2] ');
+            const n1 = notes[i];
+            const n2 = notes[i + 1];
+            // console.log(n1, n2);
+            // let treble = [], bass = [];
+            const splitNote = 60; // Middle C
+            if (n1 >= splitNote && n2 >= splitNote) {
+                const treble =`[${midiToAbc(n1)}${midiToAbc(n2)}]`;
+                // console.log(treble);
+                trebleVoice += treble;
+                bassVoice += 'z ';
+            } else if (n1<splitNote && n2<splitNote){
+                const bass = `[${midiToAbc(n1)}${midiToAbc(n2)}]`;
+                bassVoice += bass;
+                trebleVoice += 'z ';
+
+            } else if (n1>=splitNote && n2<splitNote){
+                trebleVoice +=`${midiToAbc(n1)}`;
+                bassVoice +=`${midiToAbc(n2)}`;
+            }
+            else if (n2>=splitNote && n1<splitNote){
+                trebleVoice +=`${midiToAbc(n2)}`;
+                bassVoice +=`${midiToAbc(n1)}`;
+            }
+            if (Math.ceil(i / 2) % 4 === 3) {
+                trebleVoice += '| ';
+                bassVoice += '| ';
+                accidentals = [];
+            }
+
+        }
+        // console.log( (notes.length/2) % 4);
+        if (Math.floor(notes.length/2) % 4 !== 0) {
+            trebleVoice += 'z '.repeat(4 - Math.floor(notes.length / 2) % 4);
+            bassVoice += 'z '.repeat(4 - Math.floor(notes.length / 2) % 4);
+            // if (Math.ceil(notes.length / 2) % 4 === 1 || Math.ceil(notes.length / 2) % 4 === 2 || Math.ceil(notes.length / 2) % 4 === 0) {
+            //     trebleVoice += '| ';
+            //     bassVoice += '| ';
+            // }
+            // console.log(notes.length /2 % 4);
+            if (notes.length / 2 % 4 !== 0){
+            trebleVoice += '| ';
+            bassVoice += '| ';
+            }
+        }
+        
+        // const treble = "[V:1] c z c' z |";
+        // const bass = '[V:2] C z C z |';
+        // abc += treble;
+        // abc += bass;
+        abc += trebleVoice;
+        abc += bassVoice;
+
+
+        // let def = "X:1\nM:4/4\nL:1/4\nK:C\n|:gABc dedB|dedB dedB|c2ec B2dB|c2A2 A2BA|\n";
+
+        // console.log(trebleVoice)
+        // ABCJS.renderAbc("abc-sheet", abc);
+
+        // Render the ABC notation
+        const visualObj = ABCJS.renderAbc("abc-sheet", abc)[0];
+
+        // Set up audio controls
+        if (ABCJS.synth.supportsAudio()) {
+            const synthControl = new ABCJS.synth.SynthController();
+            synthControl.load("#audio-controls", null, { 
+              displayRestart: true, 
+              displayPlay: true, 
+              displayProgress: true, 
+              displayCursor: true,
+              
+            });
+            synthControl.setTune(visualObj, true);
+            currentSynthControl = synthControl;
+        } else {
+            document.getElementById("audio-controls").innerHTML = "<b>Audio not supported in this browser.</b>";
+            currentSynthControl = null;
+        }
+
+        // const html = `
+        //     <pre>${abc}</pre>
+            
+        // `;
+        // document.getElementById('output').innerHTML = html;
+
+        
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', function() {
+      if (!validateInputs()) {
+        document.getElementById('output').innerHTML = '<span style="color:red;">Invalid note range!</span>';
+        document.getElementById('abc-sheet').innerHTML = '';
+        return;
+      }
+
+      if (!isPlaying) {
+
+      
+
+      const minNote = parseInt(document.getElementById('minNote').value, 10);
+      const maxNote = parseInt(document.getElementById('maxNote').value, 10);
+      const piece = generatePiece(minNote, maxNote);
+
+      // Display as midi pitch pairs
+      // let html = '<ol>';
+      // for (let i = 0; i < piece.length; i += 2) {
+      //   // html += `<li>${piece[i]}, ${piece[i+1] !== undefined ? piece[i+1] : ''}</li>`;
+      //   html += `(${piece[i]}, ${piece[i+1] !== undefined ? piece[i+1] : ''}), `;
+      // }
+      // html += '</ol>';
+      // document.getElementById('output').innerHTML = html;
+
+      // Render ABC music sheet
+      renderAbcSheet(piece);
+      }
+
+    });
+
+    // Ensure min/max constraints update each other
+    document.getElementById('minNote').addEventListener('input', function() {
+      const min = parseInt(this.value, 10);
+      document.getElementById('maxNote').min = min + 2;
+    });
+
+    document.getElementById('maxNote').addEventListener('input', function() {
+      const max = parseInt(this.value, 10);
+      document.getElementById('minNote').max = max - 2;
+    });
+    
+  </script>
+</body>
+</html>
